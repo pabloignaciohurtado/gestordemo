@@ -1,0 +1,53 @@
+name: gestor_docs
+description: Gestor de documentos y archivos para Android. Indexa, etiqueta,
+  busca por OCR y sincroniza metadatos con el equipo.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # --- Gestión de permisos (incl. "Acceso a todos los archivos") ---
+  permission_handler: ^11.3.1
+
+  # --- Selector del sistema para carga manual de archivos ---
+  file_picker: ^8.1.2
+
+  # --- Hash del PIN de la bóveda (en producción: + flutter_secure_storage) ---
+  crypto: ^3.0.5
+
+  # --- Base de datos local (índice de metadatos + FTS5) ---
+  sqflite: ^2.3.3
+  path: ^1.9.0
+  path_provider: ^2.1.4
+
+  # --- OCR on-device (gratis, offline) ---
+  google_mlkit_text_recognition: ^0.13.0
+
+  # --- Extracción de texto nativo de PDFs (los que ya traen texto) ---
+  read_pdf_text: ^0.3.1
+
+  # --- Sincronización del índice con el equipo ---
+  supabase_flutter: ^2.5.6
+
+  # --- Estado y utilidades ---
+  provider: ^6.1.2
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+
+# Evita path_provider_android 2.3+ (usa JNI nativo y obliga a descargar el NDK,
+# ~2 GB). La 2.2.x usa canales de plataforma y no necesita NDK.
+dependency_overrides:
+  path_provider_android: ">=2.2.0 <2.3.0"
