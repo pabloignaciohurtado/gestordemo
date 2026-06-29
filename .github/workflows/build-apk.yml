@@ -18,46 +18,35 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Flutter 3.44.4
+      - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version: "3.44.4"
 
-      - name: Flutter version
-        run: flutter --version
-
-      - name: Respaldar configuracion propia
+      - name: Respaldar config
         run: |
           mkdir -p /tmp/keep
           cp pubspec.yaml /tmp/keep/pubspec.yaml
           [ -f pubspec.lock ] && cp pubspec.lock /tmp/keep/pubspec.lock || true
-          if [ -f android/app/src/main/AndroidManifest.xml ]; then
-            cp android/app/src/main/AndroidManifest.xml /tmp/keep/AndroidManifest.xml
-          fi
 
-      - name: Generar andamiaje nativo
+      - name: Generar andamiaje
         run: flutter create --org com.tuempresa --project-name gestor_docs --platforms=android .
 
-      - name: Restaurar configuracion propia
+      - name: Restaurar config
         run: |
           cp /tmp/keep/pubspec.yaml pubspec.yaml
           [ -f /tmp/keep/pubspec.lock ] && cp /tmp/keep/pubspec.lock pubspec.lock || true
-          if [ -f /tmp/keep/AndroidManifest.xml ]; then
-            cp /tmp/keep/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
-          fi
 
-     - name: Fijar SDK versions
+      - name: Fijar SDK versions
         run: |
           F=android/app/build.gradle.kts
-          if [ -f "$F" ]; then
-            sed -i -E 's/compileSdk[ =]+flutter\.compileSdkVersion/compileSdk = 36/' "$F"
-            sed -i -E 's/compileSdk[ =]+[0-9]+/compileSdk = 36/' "$F"
-            sed -i -E 's/minSdk[ =]+flutter\.minSdkVersion/minSdk = 24/' "$F"
-            sed -i -E 's/targetSdk[ =]+flutter\.targetSdkVersion/targetSdk = 36/' "$F"
-            echo "----- build.gradle.kts resultante -----"
-            cat "$F"
-          fi
+          sed -i -E 's/compileSdk[ =]+flutter\.compileSdkVersion/compileSdk = 36/' "$F"
+          sed -i -E 's/compileSdk[ =]+[0-9]+/compileSdk = 36/' "$F"
+          sed -i -E 's/minSdk[ =]+flutter\.minSdkVersion/minSdk = 24/' "$F"
+          sed -i -E 's/targetSdk[ =]+flutter\.targetSdkVersion/targetSdk = 36/' "$F"
+          echo "----- build.gradle.kts -----"
+          cat "$F"
 
       - name: Instalar dependencias
         run: flutter pub get
@@ -65,7 +54,7 @@ jobs:
       - name: Analizar
         run: flutter analyze || true
 
-      - name: Compilar APK release
+      - name: Compilar APK debug
         run: flutter build apk --debug
 
       - name: Publicar APK
