@@ -1,0 +1,61 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      ESTRATEGIA DE ACCESO A ARCHIVOS.
+
+      Motor principal: "Acceso a todos los archivos" (MANAGE_EXTERNAL_STORAGE).
+      Es la única vía para recorrer TODO el almacenamiento compartido:
+      Descargas, WhatsApp (Android/media/com.whatsapp), DCIM y carpetas de
+      descarga de otras apps. En Play debes rellenar el Formulario de
+      Declaración de Permisos justificando que la app es un gestor documental
+      y que SAF no basta para su propósito central.
+
+      Límite: ni siquiera este permiso accede a Android/data ni Android/obb de
+      otras apps (sus directorios privados).
+
+      ML Kit (OCR) y Supabase (sync) requieren internet.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+
+    <!--
+      Permisos de medios: alternativa "ligera" si algún día publicas una
+      variante sin All Files Access. Con estos, vía MediaStore, indexas TODAS
+      las imágenes/videos/audios del teléfono (incluidos los de WhatsApp) sin
+      pedir carpetas, pero NO los PDFs/documentos de otras apps.
+    -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <!-- Compatibilidad con Android 12 e inferiores -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+    <application
+        android:label="Gestor de Documentos"
+        android:icon="@mipmap/ic_launcher">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+
+        <!-- Descarga del modelo de OCR de ML Kit al instalar. -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr" />
+    </application>
+</manifest>

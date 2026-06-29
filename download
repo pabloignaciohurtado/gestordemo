@@ -1,0 +1,135 @@
+# Gestor de Documentos — esqueleto Flutter (Android)
+
+App para indexar, etiquetar, buscar (con OCR) y compartir documentos del
+teléfono con el equipo. Este repo es un **esqueleto funcional**: la capa de
+datos, el acceso a archivos y el OCR están cableados; la UI es mínima y
+deliberadamente lista para que la hagas crecer.
+
+## Arquitectura en tres capas
+
+El principio central: la app **no mueve archivos, los indexa**.
+
+1. **Archivos físicos** — se quedan donde están. Se acceden vía Storage Access
+   Framework (SAF): el usuario concede una carpeta raíz una sola vez y Android
+   persiste el permiso.
+2. **Índice local** — SQLite con una tabla virtual **FTS5** que da búsqueda
+   full-text instantánea sobre nombre + texto OCR. Sin tildes que estorben
+   (`remove_diacritics`), pensado para español.
+3. **Sincronización** — solo se sincronizan **metadatos y texto OCR** con
+   Supabase, nunca los binarios. Compartir la taxonomía del equipo es barato;
+   replicar gigas de PDFs no.
+
+```
+lib/
+├── main.dart                       punto de entrada
+├── models/
+│   ├── models.dart                 Document (con source, in_vault, favorite), Category, Tag
+│   └── document_filter.dart        DocumentFilter + DocSort
+├── db/database_helper.dart         esquema SQLite + FTS5 + triggers + papelera + bóveda + recientes
+├── services/
+│   ├── storage_service.dart        acceso granular a una carpeta (SAF)
+│   ├── full_storage_service.dart   escaneo de TODO el teléfono (All Files Access)
+│   ├── ocr_service.dart            ML Kit (imágenes) + texto nativo (PDF)
+│   ├── auto_classifier.dart        clasificación automática por reglas
+│   ├── indexer_service.dart        orquesta escaneo + manual + OCR + clasificación
+│   ├── search_service.dart         consultas FTS5 (excluye papelera y bóveda)
+│   └── sync_service.dart           push/pull de metadatos con Supabase (esqueleto)
+├── screens/
+│   ├── home_screen.dart            CENTRO: filtros, agrupaciones, vistas, selección, etc.
+│   ├── search_screen.dart          búsqueda full-text
+│   ├── document_detail_screen.dart detalle + edición + favorito + bóveda + quitar
+│   ├── tag_category_editor.dart    editor de categoría y etiquetas
+│   ├── vault_screen.dart           bóveda con PIN
+│   └── privacy_screen.dart         garantías de privacidad
+└── docs/MOTION.md                  guía del sistema de movimiento (Flutter)
+```
+
+## Puesta en marcha
+
+1. Instala Flutter (3.22+) y el SDK de Android.
+2. Crea el andamiaje nativo sobre este código:
+   ```
+   flutter create --org com.tuempresa --project-name gestor_docs .
+   ```
+   (Ejecútalo dentro de la carpeta del proyecto; conserva los archivos `lib/`.
+   Luego reemplaza el `AndroidManifest.xml` generado por el de este repo.)
+3. `flutter pub get`
+4. Conecta un dispositivo Android y `flutter run`.
+
+## Compilar el APK
+
+**En la nube (sin instalar nada):** sube el contenido de esta carpeta a un
+repositorio de GitHub (que `pubspec.yaml` quede en la raíz). El workflow
+`.github/workflows/build-apk.yml` compila el APK en cada push o manualmente
+desde Actions → Build APK → Run workflow, y lo deja descargable en "Artifacts".
+El log del paso "Analizar" te muestra qué corregir.
+
+**Local:** dentro de la carpeta del proyecto:
+```
+flutter create --org com.tuempresa --project-name gestor_docs .
+flutter pub get
+flutter build apk --release
+```
+El APK queda en `build/app/outputs/flutter-apk/app-release.apk`. Instálalo
+habilitando "orígenes desconocidos". Si el build se queja de `minSdkVersion`
+(por ML Kit u otros plugins), súbelo a 23 en `android/app/build.gradle`.
+
+## OCR
+
+ML Kit corre **on-device** y es gratis. Para PDFs con texto nativo se extrae
+directo; los PDFs escaneados (sin capa de texto) requieren rasterizar las
+páginas y pasarlas por OCR — está marcado como TODO en `ocr_service.dart`.
+
+El OCR es lento, así que en `home_screen.dart` se procesa después del indexado.
+**En producción**, mueve `processOcrQueue()` a un `WorkManager` (paquete
+`workmanager`) para que corra en segundo plano sin atar la UI.
+
+## Sincronización con Supabase
+
+1. Crea un proyecto en Supabase y una tabla `documents` (ver el esquema en los
+   comentarios de `sync_service.dart`).
+2. Activa Row Level Security para aislar a cada equipo.
+3. Rellena `url` y `anonKey` en `main.dart` y descomenta `SyncService.init`.
+
+## Acceso a archivos: cómo se encuentra TODO
+
+El problema de "bucear entre carpetas difíciles" se resuelve con
+**MANAGE_EXTERNAL_STORAGE** ("Acceso a todos los archivos"), implementado en
+`full_storage_service.dart`. Es la única vía que recorre el almacenamiento
+compartido completo —Descargas, WhatsApp (`Android/media/com.whatsapp`), DCIM,
+carpetas de otras apps— y entrega todos los tipos de archivo, no solo medios.
+
+- SAF (`storage_service.dart`) queda como respaldo para acceso granular a una
+  carpeta concreta. Desde Android 11 SAF NO puede conceder la raíz del
+  almacenamiento ni la carpeta Descargas, por eso no sirve para barrer todo.
+- MediaStore + `READ_MEDIA_*` sería la alternativa "ligera" (sin All Files
+  Access): indexa todas las imágenes/videos/audios del teléfono sin pedir
+  carpetas, pero NO los PDFs/documentos de otras apps.
+- Ni siquiera All Files Access llega a `Android/data` ni `Android/obb` de otras
+  apps (sus directorios privados). Se omiten en el recorrido.
+
+Llama a `IndexerService.indexEntireDevice()` para escanear todo el teléfono.
+
+## Publicar en Google Play
+
+- **All Files Access requiere aprobación**: una app de gestión documental
+  califica, pero debes rellenar el Formulario de Declaración de Permisos en
+  Play Console justificando que es su propósito central y que SAF no basta. La
+  revisión es estricta y puede tardar más.
+- Necesitas **cuenta de desarrollador** de Google Play (pago único de 25 USD).
+- **Política de privacidad publicada**: obligatoria. Declara en "Seguridad de
+  los datos" que el OCR es on-device y qué metadatos se sincronizan.
+- Para el equipo: usa **Pruebas internas** o **Firebase App Distribution** —ahí
+  puedes probar con All Files Access sin esperar la revisión pública.
+
+## Compatibilidad
+
+FTS5 requiere SQLite ≥ 3.9, presente de forma nativa desde **Android 7 (API
+24)**. Si debes soportar dispositivos más antiguos, agrega
+`sqlite3_flutter_libs` para empaquetar tu propia copia de SQLite.
+
+## Notas sobre paquetes
+
+La API de `shared_storage` cambia entre versiones. Está fijada a 0.8.x; si la
+actualizas, verifica los nombres de métodos (`openDocumentTree`, `listFiles`,
+`getDocumentContent`, `persistedUriPermissions`) en la documentación del paquete.

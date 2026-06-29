@@ -1,0 +1,12 @@
+// Smoke test básico: la app arranca y construye sin lanzar excepciones.
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:gestor_docs/main.dart';
+
+void main() {
+  testWidgets('La app arranca', (WidgetTester tester) async {
+    await tester.pumpWidget(const GestorDocsApp());
+    expect(find.byType(MaterialApp), findsOneWidget);
+  });
+}
