@@ -24,32 +24,38 @@ jobs:
           channel: stable
           flutter-version: "3.44.4"
 
-      - name: Respaldar config
+      - name: Respaldar pubspec
         run: |
           mkdir -p /tmp/keep
           cp pubspec.yaml /tmp/keep/pubspec.yaml
           [ -f pubspec.lock ] && cp pubspec.lock /tmp/keep/pubspec.lock || true
 
-      - name: Generar andamiaje
+      - name: Generar andamiaje android
         run: flutter create --org com.tuempresa --project-name gestor_docs --platforms=android .
 
-      - name: Restaurar config
+      - name: Restaurar pubspec
         run: |
           cp /tmp/keep/pubspec.yaml pubspec.yaml
           [ -f /tmp/keep/pubspec.lock ] && cp /tmp/keep/pubspec.lock pubspec.lock || true
 
-      - name: Fijar SDK versions
+      - name: Permisos de almacenamiento en el manifest
         run: |
-          F=android/app/build.gradle.kts
-          sed -i -E 's/compileSdk[ =]+flutter\.compileSdkVersion/compileSdk = 36/' "$F"
-          sed -i -E 's/compileSdk[ =]+[0-9]+/compileSdk = 36/' "$F"
-          sed -i -E 's/minSdk[ =]+flutter\.minSdkVersion/minSdk = 24/' "$F"
-          sed -i -E 's/targetSdk[ =]+flutter\.targetSdkVersion/targetSdk = 36/' "$F"
-          echo "----- build.gradle.kts -----"
-          cat "$F"
+          perl -0pi -e 's{(<manifest[^>]*>)}{$1\n    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>\n    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>\n    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>}' android/app/src/main/AndroidManifest.xml || true
+          echo "--- Manifest resultante ---"
+          cat android/app/src/main/AndroidManifest.xml
 
       - name: Instalar dependencias
         run: flutter pub get
+
+      - name: Forzar compileSdk 36 en los plugins
+        run: |
+          FLUTTER_ROOT="$(dirname "$(dirname "$(command -v flutter)")")"
+          PATCHED=0
+          while IFS= read -r -d '' f; do
+            sed -i -E 's/(compileSdk(Version)?)[[:space:]]+[0-9]+/\1 36/g; s/(compileSdk)[[:space:]]*=[[:space:]]*[0-9]+/\1 = 36/g' "$f"
+            PATCHED=$((PATCHED+1))
+          done < <(find "$HOME/.pub-cache" "${PUB_CACHE:-/nonexistent}" "$FLUTTER_ROOT/.pub-cache" -path "*/android/build.gradle*" -print0 2>/dev/null)
+          echo "Plugins parcheados a compileSdk 36: $PATCHED"
 
       - name: Analizar
         run: flutter analyze || true
