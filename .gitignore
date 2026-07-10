@@ -1,0 +1,33 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+pubspec.lock
+
+# Android: lo regenera `flutter create` en CI
+android/
+.gradle/
+gradlew
+gradlew.bat
+gradle-wrapper.properties
+local.properties
+*.jks
+*.keystore
+
+# Artefactos generados
+GeneratedPluginRegistrant.java
+GeneratedPluginRegistrant.swift
+*.apk
+*.aab
+
+# Basura de descargas del navegador — origen de la contaminacion previa
+*\ (*).png
+*\ (*).xml
+download
+
+# Editores / SO
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
